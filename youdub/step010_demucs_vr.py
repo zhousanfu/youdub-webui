@@ -3,7 +3,10 @@ from demucs.api import Separator
 import os
 from loguru import logger
 import time
-from .utils import save_wav, normalize_wav
+try:
+    from .utils import save_wav, normalize_wav
+except ImportError:
+    from utils import save_wav, normalize_wav
 import torch
 auto_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 separator = None

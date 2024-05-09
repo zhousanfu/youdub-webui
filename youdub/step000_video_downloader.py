@@ -116,6 +116,9 @@ def download_from_url(url, folder_path, resolution='1080p', num_videos=5):
 
 if __name__ == '__main__':
     # Example usage
-    url = 'https://www.youtube.com/watch?v=3LPJfIKxwWc'
-    folder_path = 'videos'
-    download_from_url(url, folder_path)
+    url_list = [
+        'https://youtu.be/TgKwz5Ikpc8?si=XiANFKZc8N0hc2nE'
+        ]
+    for url in url_list:
+        folder_path = 'videos'
+        download_from_url(url, folder_path)

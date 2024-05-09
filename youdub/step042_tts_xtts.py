@@ -1,10 +1,25 @@
+#!python3.10
+# coding=utf-8
+'''
+ Author: Sanfor Chow
+ Date: 2024-04-23 21:47:57
+ LastEditors: Sanfor Chow
+ LastEditTime: 2024-05-03 10:13:06
+ FilePath: /YouDub-webui/youdub/step042_tts_xtts.py
+'''
 import os
 from TTS.api import TTS
 from loguru import logger
 import numpy as np
 import torch
 import time
-from .utils import save_wav
+import edge_tts
+import asyncio
+from pydub import AudioSegment
+try:
+    from .utils import save_wav
+except:
+    from utils import save_wav
 model = None
 
 def init_TTS():
@@ -45,10 +60,25 @@ def tts(text, output_path, speaker_wav, model_name="tts_models/multilingual/mult
             logger.warning(f'TTS {text} 失败')
             logger.warning(e)
 
+async def tts_function(text, output_path):
+    tts = edge_tts.Communicate(
+        text,
+        voice='zh-CN-XiaoyiNeural',
+        rate='-4%',
+        volume='+0%'
+        )
+    await tts.save(output_path.split('.')[0] + '.mp3')
+    audio = AudioSegment.from_mp3(output_path.split('.')[0] + '.mp3')
+    audio.export(output_path, format="wav")
+
 
 if __name__ == '__main__':
-    speaker_wav = r'videos\TED-Ed\20231121 Why did the US try to kill all the bison？ - Andrew C. Isenberg\audio_vocals.wav'
-    while True:
-        text = input('请输入：')
-        tts(text, f'playground/{text}.wav', speaker_wav)
+    # speaker_wav = r'videos/3Blue1Brown/20190113 The most unexpected answer to a counting puzzle/audio_vocals.wav'
+    # while True:
+    #     text = input('请输入：')
+    #     tts(text, f'playground/{text}.wav', speaker_wav)
+    asyncio.run(tts_function(
+        text='有时数学和物理会相互作用，产生的结果让人感到太过奇怪。',
+        output_path='videos/zh-CN-shaanxi-XiaoniNeural.wav'
+    ))
         

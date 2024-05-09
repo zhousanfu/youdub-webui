@@ -2,6 +2,7 @@
 import json
 import os
 import re
+from groq import Groq
 from openai import OpenAI
 from dotenv import load_dotenv
 import time
@@ -20,6 +21,7 @@ else:
     extra_body = {
         'repetition_penalty': 1.1,
     }
+
 def get_necessary_info(info: dict):
     return {
         'title': info['title'],
@@ -30,18 +32,21 @@ def get_necessary_info(info: dict):
         'tags': info['tags'],
     }
 
-
 def ensure_transcript_length(transcript, max_length=4000):
     mid = len(transcript)//2
     before, after = transcript[:mid], transcript[mid:]
     length = max_length//2
     return before[:length] + after[-length:]
+
 def summarize(info, transcript, target_language='简体中文'):
-    client = OpenAI(
-    # This is the default and can be omitted
-    base_url=os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1'),
-    api_key=os.getenv('OPENAI_API_KEY')
-)
+    if model_name == "llama3-8b-8192":
+        client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    else:
+        client = OpenAI(
+        # This is the default and can be omitted
+        base_url=os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1'),
+        api_key=os.getenv('OPENAI_API_KEY')
+    )
     transcript = ' '.join(line['text'] for line in transcript)
     transcript = ensure_transcript_length(transcript, max_length=2000)
     info_message = f'Title: "{info["title"]}" Author: "{info["uploader"]}". ' 
@@ -63,12 +68,11 @@ def summarize(info, transcript, target_language='简体中文'):
                 {'role': 'user', 'content': full_description+retry_message},
             ]
             response = client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                timeout=240,
-                extra_body=extra_body
+                model='llama3-8b-8192',
+                messages=messages
             )
             summary = response.choices[0].message.content.replace('\n', '')
+            print('----------->summary', summary)
             if '视频标题' in summary:
                 raise Exception("包含“视频标题”")
             logger.info(summary)
@@ -101,10 +105,8 @@ def summarize(info, transcript, target_language='简体中文'):
     while True:
         try:
             response = client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                timeout=240,
-                extra_body=extra_body
+                model='llama3-8b-8192',
+                messages=messages
             )
             summary = response.choices[0].message.content.replace('\n', '')
             logger.info(summary)
@@ -126,7 +128,6 @@ def summarize(info, transcript, target_language='简体中文'):
         except Exception as e:
             logger.warning(f'总结翻译失败\n{e}')
             time.sleep(1)
-
 
 def translation_postprocess(result):
     result = re.sub(r'\（[^)]*\）', '', result)
@@ -174,43 +175,6 @@ def valid_translation(text, translation):
             return False, f"Don't include `{word}` in the translation. Only translate the following sentence and give me the result."
     
     return True, translation_postprocess(translation)
-# def split_sentences(translation, punctuations=['。', '？', '！', '\n', '”', '"']):
-#     def is_punctuation(char):
-#         return char in punctuations
-    
-#     output_data = []
-#     for item in translation:
-#         start = item['start'] 
-#         text = item['text']
-#         speaker = item['speaker']
-#         translation = item['translation']
-#         sentence_start = 0
-#         duration_per_char = (item['end'] - item['start']) / len(translation)
-#         for i, char in enumerate(translation):
-#             # If the character is a punctuation, split the sentence
-#             if not is_punctuation(char) and i != len(translation) - 1:
-#                 continue
-#             if i - sentence_start < 5 and i != len(translation) - 1:
-#                 continue
-#             if i < len(translation) - 1 and is_punctuation(translation[i+1]):
-#                 continue
-#             sentence = translation[sentence_start:i+1]
-#             sentence_end = start + duration_per_char * len(sentence)
-
-#             # Append the new item
-#             output_data.append({
-#                 "start": round(start, 3),
-#                 "end": round(sentence_end, 3),
-#                 "text": text,
-#                 "speaker": speaker,
-#                 "translation": sentence
-#             })
-
-#             # Update the start for the next sentence
-#             start = sentence_end
-#             sentence_start = i + 1
-#     return output_data
-
 
 def split_text_into_sentences(para):
     para = re.sub('([。！？\?])([^，。！？\?”’》])', r"\1\n\2", para)  # 单字符断句符
@@ -278,10 +242,8 @@ def _translate(summary, transcript, target_language='简体中文'):
             
             try:
                 response = client.chat.completions.create(
-                    model=model_name,
-                    messages=messages,
-                    timeout=240,
-                    extra_body=extra_body
+                    model='llama3-8b-8192',
+                    messages=messages
                 )
                 translation = response.choices[0].message.content.replace('\n', '')
                 logger.info(f'原文：{text}')
@@ -353,5 +315,8 @@ def translate_all_transcript_under_folder(folder, target_language):
     return f'Translated all videos under {folder}'
 
 if __name__ == '__main__':
-    translate_all_transcript_under_folder(
-        r'videos\TED-Ed\20240227 Can you solve the magical maze riddle - Alex Rosenthal', '简体中文')
+    base_path = r'videos'
+    files = os.listdir(base_path)
+    for path in files:
+        print(os.path.join(base_path, path))
+        translate_all_transcript_under_folder(os.path.join(base_path, path), '简体中文')

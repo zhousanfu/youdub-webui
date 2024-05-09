@@ -1,15 +1,24 @@
 import json
 import os
 import re
+import asyncio
 import librosa
 
 from loguru import logger
 import numpy as np
 
-from .utils import save_wav, save_wav_norm
-from .step041_tts_bytedance import tts as bytedance_tts
-from .step042_tts_xtts import tts as xtts_tts
-from .cn_tx import TextNorm
+try:
+    from .utils import save_wav, save_wav_norm
+    from .step041_tts_bytedance import tts as bytedance_tts
+    from .step042_tts_xtts import tts as xtts_tts
+    from .step042_tts_xtts import tts_function
+    from .cn_tx import TextNorm
+except:
+    from utils import save_wav, save_wav_norm
+    from step041_tts_bytedance import tts as bytedance_tts
+    from step042_tts_xtts import tts as xtts_tts
+    from step042_tts_xtts import tts_function
+    from cn_tx import TextNorm
 from audiostretchy.stretch import stretch_audio
 normalizer = TextNorm()
 def preprocess_text(text):
@@ -19,9 +28,8 @@ def preprocess_text(text):
     # 使用正则表达式在字母和数字之间插入空格
     text = re.sub(r'(?<=[a-zA-Z])(?=\d)|(?<=\d)(?=[a-zA-Z])', ' ', text)
     return text
-    
-    
-def adjust_audio_length(wav_path, desired_length, sample_rate = 24000, min_speed_factor = 0.6, max_speed_factor = 1.1):
+
+def adjust_audio_length(wav_path, desired_length, sample_rate=24000, min_speed_factor = 0.6, max_speed_factor = 1.1):
     wav, sample_rate = librosa.load(wav_path, sr=sample_rate)
     current_length = len(wav)/sample_rate
     speed_factor = max(
@@ -52,12 +60,13 @@ def generate_wavs(folder, force_bytedance=False):
         text = preprocess_text(line['translation'])
         output_path = os.path.join(output_folder, f'{str(i).zfill(4)}.wav')
         speaker_wav = os.path.join(folder, 'SPEAKER', f'{speaker}.wav')
-        if num_speakers == 1:
-            bytedance_tts(text, output_path, speaker_wav, voice_type='BV701_streaming')
-        elif force_bytedance:
-            bytedance_tts(text, output_path, speaker_wav)
-        else:
-            xtts_tts(text, output_path, speaker_wav)
+        # if num_speakers == 1:
+        #     bytedance_tts(text, output_path, speaker_wav, voice_type='BV701_streaming')
+        # elif force_bytedance:
+        #     bytedance_tts(text, output_path, speaker_wav)
+        # else:
+        #     xtts_tts(text, output_path, speaker_wav)
+        asyncio.run(tts_function(text, output_path))
         start = line['start']
         end = line['end']
         length = end-start
@@ -97,7 +106,6 @@ def generate_wavs(folder, force_bytedance=False):
     # combined_wav /= np.max(np.abs(combined_wav))
     save_wav_norm(combined_wav, os.path.join(folder, 'audio_combined.wav'))
     logger.info(f'Generated {os.path.join(folder, "audio_combined.wav")}')
-        
 
 def generate_all_wavs_under_folder(root_folder, force_bytedance=False):
     for root, dirs, files in os.walk(root_folder):
@@ -106,5 +114,9 @@ def generate_all_wavs_under_folder(root_folder, force_bytedance=False):
     return f'Generated all wavs under {root_folder}'
 
 if __name__ == '__main__':
-    folder = r'videos\TED-Ed\20211214 Would you raise the bird that murdered your children？ - Steve Rothstein'
-    generate_wavs(folder, force_bytedance=False)
+    base_path = r'videos'
+    files = os.listdir(base_path)
+    for path in files:
+        if path != '.DS_Store':
+            print(os.path.join(base_path, path))
+            generate_wavs(os.path.join(base_path, path), force_bytedance=False)

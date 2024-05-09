@@ -154,5 +154,10 @@ def synthesize_all_video_under_folder(folder, subtitles=True, speed_up=1.05, fps
                              speed_up=speed_up, fps=fps, resolution=resolution)
     return f'Synthesized all videos under {folder}'
 if __name__ == '__main__':
-    folder = r'videos\3Blue1Brown\20231207 Im still astounded this is true'
-    synthesize_all_video_under_folder(folder, subtitles=True)
+    base_path = r'videos/3Blue1Brown'
+    files = os.listdir(base_path)
+    for path in files:
+        if path != '.DS_Store':
+            print(os.path.join(base_path, path))
+            synthesize_all_video_under_folder(os.path.join(base_path, path), subtitles=True)
+

@@ -1,7 +1,36 @@
+#!python3.10
+# coding=utf-8
+'''
+ Author: Sanfor Chow
+ Date: 2024-05-01 08:32:34
+ LastEditors: Sanfor Chow
+ LastEditTime: 2024-05-09 17:36:52
+ FilePath: /YouDub-webui/youdub/utils.py
+'''
 import re
 import string
 import numpy as np
 from scipy.io import wavfile
+from pydub import AudioSegment
+
+
+
+def convert_khz(output_file):
+    # 输入文件路径和输出文件路径
+    input_file = output_file
+    output_file = output_file.split('.')[0] + '_16khz.wav'
+
+    # 读取音频文件
+    audio = AudioSegment.from_wav(input_file)
+
+    # 设置目标采样率为16 kHz
+    target_sample_rate = 16000
+
+    # 执行采样率转换
+    audio = audio.set_frame_rate(target_sample_rate)
+
+    # 导出音频文件
+    audio.export(output_file, format="wav")
 
 def sanitize_filename(filename: str) -> str:
     # Define a set of valid characters
